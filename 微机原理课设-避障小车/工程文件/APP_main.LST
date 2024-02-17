@@ -1,0 +1,125 @@
+C51 COMPILER V9.56.0.0   APP_MAIN                                                          02/27/2023 16:10:32 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE APP_MAIN
+OBJECT MODULE PLACED IN APP_main.OBJ
+COMPILER INVOKED BY: D:\Keil\C51\BIN\C51.exe APP_main.c DB OE BR LARGE INCDIR(E:\Study Soft\silicon\Inc;c:\SiLabs\MCU\In
+                    -c)
+
+line level    source
+
+   1          #include"APP_main.h"
+   2          
+   3          #define distance 40
+   4          #define distance_L 40
+   5          #define distance_R 40
+   6          #define distance_M 65
+   7          #define speed_L 20
+   8          #define speed_R 20
+   9          
+  10          bit F_T=0;
+  11          
+  12          unsigned char TIME2_COUNT=20;
+  13          
+  14          void time2(void) interrupt 3
+  15            {
+  16   1          unsigned char ch;
+  17   1          TIME2_COUNT--;
+  18   1              if(TIME2_COUNT==0) 
+  19   1                 {
+  20   2                        TIME2_COUNT=10;
+  21   2                        F_T=1;
+  22   2                        TR1=1;EA=1;
+  23   2              }
+  24   1        }
+*** WARNING C280 IN LINE 16 OF APP_main.c: 'ch': unreferenced local variable
+  25          
+  26          void main()
+  27          {
+  28   1              unsigned char left = 0,right = 0,middle = 0,action0=0,action1=0;//action0记录上一状态，action1记录当前状
+             -态
+  29   1              SystemInit();
+  30   1              TMOD=1;
+  31   1              TH1=0; TL1=0;
+  32   1              TR1=1; ET1=1;
+  33   1              EA=1;
+  34   1      
+  35   1          DC_Motor(LEFT_F,GOING,speed_L);  //左前电机
+  36   1              DC_Motor(LEFT_B,GOING,speed_L);  //左后电机
+  37   1          DC_Motor(RIGHT_F,GOING,speed_R);  //右前电机 
+  38   1              DC_Motor(RIGHT_B,GOING,speed_R);  //右后电机
+  39   1      
+  40   1      while(1)    
+  41   1      {
+  42   2         if(F_T) 
+  43   2            {
+  44   3                       left=GetIR_Distance(9);
+  45   3                       middle=GetIR_Distance(8);
+  46   3                       right=GetIR_Distance(7);
+  47   3                       Display_Char12864(1,0,"屈佳泰2006020416",001);
+  48   3               Display_Char12864(2,0,"LEFT:",left);
+  49   3               Display_Char12864(3,0,"MIDDLE:",middle);
+  50   3               Display_Char12864(4,0,"RIGHT:",right);
+  51   3                       action1=0;
+  52   3                       if (middle<distance_M) action1=3;//3后退
+C51 COMPILER V9.56.0.0   APP_MAIN                                                          02/27/2023 16:10:32 PAGE 2   
+
+  53   3                               else if (left<distance_L) action1=1;//1右转
+  54   3                               else if (right<distance_R) action1=2;//2左转
+  55   3                       if (action0!=action1)
+  56   3                          {
+  57   4                                action0=action1;
+  58   4                        switch(action1)
+  59   4                          {
+  60   5                                case 0:   //直走
+  61   5                                  {
+  62   6                                                 DC_Motor(LEFT_F,GOING,speed_L);   //左前电机
+  63   6                                 DC_Motor(LEFT_B,GOING,speed_L);   //左后电机
+  64   6                             DC_Motor(RIGHT_F,GOING,speed_R);  //右前电机 
+  65   6                                 DC_Motor(RIGHT_B,GOING,speed_R);  //右后电机
+  66   6              
+  67   6                                       }break;
+  68   5                                case 1:   //右转
+  69   5                                  {
+  70   6                                                 DC_Motor(LEFT_F,GOING,speed_L);   //左前电机
+  71   6                                 DC_Motor(LEFT_B,GOING,speed_L);   //左后电机
+  72   6                             DC_Motor(RIGHT_F,STOP,speed_R);  //右前电机 
+  73   6                                 DC_Motor(RIGHT_B,STOP,speed_R);  //右后电机          
+  74   6                                       }break;
+  75   5                                case 2:   //左转
+  76   5                              { 
+  77   6                                                 DC_Motor(LEFT_F,STOP,speed_L);   //左前电机
+  78   6                                 DC_Motor(LEFT_B,STOP,speed_L);   //左后电机
+  79   6                             DC_Motor(RIGHT_F,GOING,speed_R);  //右前电机 
+  80   6                                 DC_Motor(RIGHT_B,GOING,speed_R);  //右后电机                         
+  81   6                              
+  82   6                               }break;
+  83   5                                        case 3:
+  84   5                              { 
+  85   6                                                 DC_Motor(LEFT_F,BACK,(speed_L-5));   //左前电机
+  86   6                                 DC_Motor(LEFT_B,BACK,(speed_L-5));   //左后电机
+  87   6                             DC_Motor(RIGHT_F,BACK,(speed_R-5));  //右前电机 
+  88   6                                 DC_Motor(RIGHT_B,BACK,(speed_R-5));  //右后电机                              
+  89   6                                       }break;
+  90   5                        default: break;
+  91   5                     }
+  92   4                               }
+  93   3                       F_T=0;
+  94   3                }   
+  95   2         }
+  96   1       }                                                                                                        
+             -                                                                                       
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    417    ----
+   CONSTANT SIZE    =     38    ----
+   XDATA SIZE       =      1       6
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,516 @@
+
+/**********************************************************************************************************
+**** 文件名：LCD_12864.c
+**** 
+**** 文件描述：LCD12864显示函数库
+****		   12864模块和单片机之间采用串行方式传输数据
+****			CS    ——		串行片选信号，高有效，此处硬件上已经将其接电源，忽略
+****		    SID   ——		串行数据线	连接至单片机P3.2口
+****		   SCLK   ——		串行时钟输入 连接至单片机P3.3口
+****			
+****
+**** 创建人：FeiChen
+**** 
+**** 版本号：1.0
+**** 
+**** 修改记录：
+**** 
+**** 
+****
+***********************************************************************************************************/
+
+
+
+#include "LCD_12864_H.h"
+
+
+/*************************************************************************************************
+*****
+***** 函数名：void LCDSendCommand(unsigned char command_data) 
+*****
+***** 入口参数：unsigned char command_data,发送的各种指令码
+*****
+*****
+***** 功能描述：LCD写指令函数，
+*****			SID   ——		串行数据线	连接至单片机P3.2口
+*****		   SCLK   ——		串行时钟输入 连接至单片机P3.3口
+
+*****			SID   ——		串行数据线	连接至单片机P3.3口
+*****		   SCLK   ——		串行时钟输入 连接至单片机P3.4口
+*****			串口传输时，发送指令模式代码：直接发送11111000同步码，不用分两次发送
+*****						发送1字节数据分成两个阶段发送：
+*****							1、高4位数据+低4位全0封装成1字节
+*****							2、低4位数据+低4位全0封装成1字节
+*****			传输过程：1、先发送写指令模式代码11111000,"11111"同步字符，“RW、RS：00”写指令
+*****					  2、然后发送各种指令代码。
+*****			基本指令集RE=0
+*****				指令名称			控制信号					指令控制码
+*****
+*****									RS	R/W				D7	D6	D5	D4	D3	D2	D1	D0
+*****				
+*****				清除显示			0	0				0	0	0	0	0	0	0	1
+*****
+*****				地址归0				0	0				0	0	0	0	0	0	1	X
+*****				
+*****				进入设定点			0	0				0	0	0	0	0	1	I/D	S
+*****
+*****				显示开关设置		0	0				0	0	0	0	1	D	C	B
+*****
+*****				移位设置			0	0				0	0	0	1	S/C	R/L	X	X
+*****
+*****				功能设定			0	0				0	0	1	DL	X	0/RE X	X	
+*****	
+*****				设定CGRAM地址		0	0				0	1	A5	A4	A3	A2	A1	A0
+*****
+*****				设定DDRAM地址		0	0				1	0	A5	A4	A3	A2	A1	A0
+*****
+*****				读忙标志和地址		0	1				BF	A6	A5	A4	A3	A2	A1	A0
+*****
+*****				写显示数据			1	0				 		显示数据的编码
+*****
+*****				读显示数据			1	1						显示数据
+*****
+*****		扩展指令集略
+*****
+***** 返回值：无
+*****
+***** 作者：FeiChen
+**************************************************************************************************/
+
+void LCDSendCommand(unsigned char command_data) 
+{ 
+    unsigned char i; 
+    unsigned char i_data,temp_data; 
+    i_data = 0xf8;     // 11111000,"11111"同步字符，“RW、RS：00”写指令  
+    Delay(10000);
+    SCLK=0; 
+
+//先发送写指令控制码0xF8，此控制码直接发送即可
+    for(i=0;i<8;i++) 
+    { 
+        if(i_data&0x80) SID=1;
+		    else SID=0;
+		Delay(10);//Ray添加，解决花屏和乱码的关键语句
+        SCLK=1;
+        Delay(50);
+        SCLK=0;
+        Delay(50);
+        i_data = i_data<<1; 
+    } 
+//发送1字节指令码，需要封装成2字节数据发送
+    i_data = command_data; 
+//保存指令码高四位
+    i_data &= 0xf0; 
+//发送高4位数据
+    for(i=0;i<8;i++) 
+    { 
+        if(i_data&0x80) SID=1;
+		   else SID=0;
+		Delay(10);//Ray添加，解决花屏和乱码的关键语句
+        SCLK=1; 
+        Delay(50);
+        SCLK=0; 
+       	Delay(50);
+        i_data = i_data<<1; 
+    } 
+
+
+    i_data = command_data; 
+//保存指令码低四位 
+    temp_data = i_data & 0x0f; 
+    i_data = temp_data << 4; 
+//发送低4位数据
+    for(i=0;i<8;i++) 
+    { 
+        if(i_data&0x80) SID=1;
+		   else SID=0;
+		Delay(10);//Ray添加，解决花屏和乱码的关键语句
+        SCLK=1; 
+        Delay(50);
+        SCLK=0; 
+        Delay(50);
+        i_data = i_data<<1; 
+    } 
+}
+/*************************************************************************************************
+*****
+***** 函数名：void LCDSendData(unsigned char command_data) 
+*****
+***** 入口参数：unsigned char command_data,发送的一字节数据
+*****
+*****
+***** 功能描述：LCD写数据函数，
+*****			SID   ——		串行数据线	连接至单片机P3.2口
+*****		   SCLK   ——		串行时钟输入 连接至单片机P3.3口
+*****			串口传输时，发送控制码：直接发送11111010同步码，不用分两次发送
+*****						发送1字节数据分成两个阶段发送：
+*****							1、高4位数据+低4位全0封装成1字节
+*****							2、低4位数据+低4位全0封装成1字节
+*****				指令名称			控制信号					指令控制码
+*****
+*****									RS	R/W				D7	D6	D5	D4	D3	D2	D1	D0
+*****				写显示数据			1	0				 		显示数据的编码
+*****
+***** 返回值：无
+*****
+***** 作者：FeiChen
+**************************************************************************************************/
+void LCDSendData(unsigned char command_data) 
+{ 
+    unsigned char i; 
+    unsigned char i_data,temp_data; 
+    i_data = 0xfa;    //11111010,"11111"同步字符，“RW、RS：01”写数据    
+    Delay(10000);
+    SCLK=0;
+	//先发送写指令控制码0xFA，此控制码直接发送即可
+    for(i=0;i<8;i++) 
+    { 
+        if(i_data&0x80) SID=1;
+		   else SID=0;
+		Delay(10);//Ray添加，解决花屏和乱码的关键语句
+        SCLK=1;
+        Delay(50);
+        SCLK=0; 
+        Delay(50);
+        i_data=i_data<<1; 
+     }
+	 //发送1字节数据，需要封装成2字节数据发送 
+    i_data=command_data; 
+	//保存数据高4位
+    i_data&=0xf0;
+	//发送高4位数据 
+    for(i=0;i<8;i++) 
+    { 
+        if(i_data&0x80) SID=1;
+		   else SID=0;
+		Delay(10);//Ray添加，解决花屏和乱码的关键语句
+        SCLK=1;
+        Delay(50);
+        SCLK=0;
+        Delay(50);
+        i_data=i_data<<1; 
+    } 
+    i_data=command_data; 
+	//保存数据低4位
+    temp_data=i_data&0x0f; 
+    i_data=temp_data<<4; 
+	//发送低4位数据
+    for(i=0;i<8;i++) 
+    { 
+        
+        if(i_data&0x80) SID=1;
+		   else SID=0;
+		Delay(10);//Ray添加，解决花屏和乱码的关键语句
+        SCLK=1;
+        Delay(50);
+        SCLK=0; 
+        Delay(50);
+        i_data=i_data<<1; 
+    }  
+}
+/*************************************************************************************************
+*****
+***** 函数名：void LCD12864_Init(void)
+*****
+***** 入口参数：无
+*****
+*****
+***** 功能描述：LCD初始化函数，配置对应端口推挽输出
+*****			SID   ——		串行数据线	连接至单片机P3.2口
+*****		   SCLK   ——		串行时钟输入 连接至单片机P3.3口
+*****			进行显示屏功能设置，设定点，显示设定，清显示	
+*****					
+*****
+***** 返回值：无
+*****
+***** 作者：FeiChen
+**************************************************************************************************/
+
+void LCD12864_Init(void) 
+{    
+	Delay(50000);
+	Delay(50000);			//等待一个延时，使得12864屏电压稳定，才开始初始化
+    
+    LCDSendCommand(0x30);     // 功能设置:一次送8位数据,基本指令集
+    LCDSendCommand(0x06);     // 点设定:显示字符/光标从左到右移位,DDRAM地址加1 
+    LCDSendCommand(0x0c);     // 显示设定:开显示,不显示光标,正常显示不反白 
+    LCDSendCommand(0x01);     // 清DDRAM 
+}
+
+/*************************************************************************************************
+*****
+***** 函数名：void DisplayChinese(uc row,uc col,uc cara_one,uc cara_two)
+*****
+***** 入口参数：uc row——显示的行数，取值范围1-4
+*****			uc col——显示的列数，取值范围0-7
+*****			uc cara_one——中文汉字编码高8位字节
+*****			uc cara_two——中文汉字编码低8位字节
+***** 
+***** 功能描述：LCD显示中文汉字函数，调用此函数可设置在第几行、第几列显示中文汉字		
+*****		   					
+*****
+***** 返回值：无
+*****
+***** 作者：FeiChen
+**************************************************************************************************/
+void DisplayChinese(uc row,uc col,uc cara_one,uc cara_two)
+{
+    
+    LCDSendCommand(0x02);
+	if(row==1)
+	   {
+		LCDSendCommand(0x80|col);
+        
+	   }
+	if(row==2)
+	   {
+		LCDSendCommand(0x90|col);
+	   }
+	if(row==3)
+	   {
+		LCDSendCommand(0x88|col);
+	   }
+	if(row==4)
+	   {
+		LCDSendCommand(0x98|col);
+	   } 
+	LCDSendData(cara_one);
+	LCDSendData(cara_two);
+	
+}
+
+/*************************************************************************************************
+*****
+***** 函数名：void LcdDisplay12864(unsigned char row,unsigned char col,uc * str,bit onoff,unsigned int data_input)
+*****
+***** 入口参数：unsigned char row——显示的行数，取值范围1-4
+*****			unsigned char col——显示的列数，取值范围0-15
+*****			uc * str——显示的英文字符串
+*****			uc unsigned int data_input——显示的整数值
+***** 
+***** 功能描述：LCD显示中文汉字函数，调用此函数可设置在第几行、第几列显示英文字符串和整数;		
+*****		   	调试用，可用来显示复眼通道号和相应最大值				
+*****
+***** 返回值：无
+*****
+***** 作者：FeiChen
+**************************************************************************************************/
+void LcdDisplay12864(unsigned char row,unsigned char col,uc * str,bit onoff,unsigned int data_input)
+{
+	
+	LCDSendCommand(0x02);
+	switch(row)
+	{
+		case 1:
+		{
+			LCDSendCommand(0x80|col);
+			while(*str)
+			{
+	        	LCDSendData(*str++);
+			
+			}
+		}break;
+		case 2:
+		{
+			LCDSendCommand(0x90|col);
+			while(*str)
+			{
+	        	LCDSendData(*str++);
+			}
+		}break;
+		case 3:
+		{
+			LCDSendCommand(0x88|col);
+			while(*str)
+			{
+	        	LCDSendData(*str++);
+			}
+		}break;
+		case 4:
+		{
+			LCDSendCommand(0x98|col);
+			while(*str)
+			{
+	        	LCDSendData(*str++);
+			}
+		}break;
+
+		default: 
+		{
+			while(*str)
+			{
+	        	LCDSendData(*str++);
+			}
+		}break;
+	}
+	if (onoff) {
+		LcdDesppayInt(data_input);
+	}
+}
+
+/*************************************************************************************************
+*****
+***** 函数名：void Displaychar12864(unsigned char row,unsigned char col,uc * str,unsigned int data_input)
+*****
+***** 入口参数：unsigned char row——显示的行数，取值范围1-4
+*****			unsigned char col——显示的列数，取值范围0-15
+*****			uc * str——显示的英文字符串
+*****			uc unsigned int data_input——显示的8位整数值
+***** 
+***** 功能描述：LCD显示中文汉字函数，调用此函数可设置在第几行、第几列显示英文字符串和整数;		
+*****		   	调试用，可用来显示复眼通道号和相应最大值				
+*****
+***** 返回值：无
+*****
+***** 作者：FeiChen
+**************************************************************************************************/
+void Displaychar12864(unsigned char row,unsigned char col,uc * str,unsigned char data_input)
+  {
+	LCDSendCommand(0x02);
+	switch(row)
+	  {
+		case 1:
+		  {
+			LCDSendCommand(0x80|col);
+			while(*str)
+			  {
+	        	LCDSendData(*str++);
+			
+			  }
+		  }break;
+		case 2:
+		  {
+			LCDSendCommand(0x90|col);
+			while(*str)
+			  {
+	        	LCDSendData(*str++);
+			  }
+		  }break;
+		case 3:
+		  {
+			LCDSendCommand(0x88|col);
+			while(*str)
+			  {
+	        	LCDSendData(*str++);
+			  }
+		  }break;
+		case 4:
+		  {
+			LCDSendCommand(0x98|col);
+			while(*str)
+			  {
+	        	LCDSendData(*str++);
+			  }
+		  }break;
+
+		default: 
+		  {
+			while(*str)
+			  {
+	        	LCDSendData(*str++);
+			  }
+		  }break;
+	  }
+		DesppayChar(data_input);
+  }
+
+/*************************************************************************************************
+*****
+***** 函数名：void LcdDesppayInt(unsigned int uiData)
+*****
+***** 入口参数：unsigned int uiData——需要显示的整数值
+*****			
+*****	
+***** 
+***** 功能描述：LCD显示整数函数		
+*****		   	将传进来的整数值按ASCII码形式送入显示屏显示，只正常显示000-99999
+*****						
+*****
+***** 返回值：无
+*****
+***** 作者：FeiChen
+**************************************************************************************************/
+void LcdDesppayInt(unsigned int uiData)
+{
+  xdata char ucStrDisp[6] = {'0','0','0','0','0','0'};//保存整数的ASCII在临时数组中
+  xdata unsigned char i = 0;
+  xdata unsigned char dataNum=0;//显示几位数
+//至少显示3位数  
+  if(uiData<1000)
+    {
+      ucStrDisp[0] = (char)(uiData/100+48);//将数字转成对应的ASCII码
+      ucStrDisp[1] = (char)((uiData/10)%10+48);
+      ucStrDisp[2] = (char)(uiData%10+48);
+      dataNum = 3;
+      
+    }
+  //显示4位数 
+  else if(1000<=uiData && uiData<10000)
+    {
+      ucStrDisp[0] = (char)(uiData/1000 + 48);
+      ucStrDisp[1] = (char)((uiData/100)%10 + 48);
+      ucStrDisp[2] = (char)((uiData/10)%10 + 48);
+      ucStrDisp[3] = (char)(uiData%10 + 48);
+      dataNum = 4;
+    }
+  //显示5位数 
+  else if(10000<=uiData && uiData<100000)
+    {
+      ucStrDisp[0] = (char)(uiData/10000 + 48);
+      ucStrDisp[1] = (char)((uiData/1000)%10 + 48);
+      ucStrDisp[2] = (char)((uiData/100)%10 + 48);
+      ucStrDisp[3] = (char)((uiData/10)%10 + 48);
+      ucStrDisp[4] = (char)(uiData%10 + 48);
+      dataNum = 5;
+    }
+  //调用数值过大则只显示99999
+  else
+    {
+    ucStrDisp[0] = '9';
+    ucStrDisp[1] = '9';
+    ucStrDisp[2] = '9';
+    ucStrDisp[3] = '9';
+    ucStrDisp[4] = '9';
+    }
+  	//发送对应几位数的ASCII码进行显示
+  while(dataNum--)
+    {  
+      LCDSendData(ucStrDisp[i]);
+      i++;
+    }
+}
+
+/*************************************************************************************************
+*****
+***** 函数名：void LcdDesppayChar(unsigned char uiData)
+*****
+***** 入口参数：unsigned char uiData——需要显示的8位整数值
+*****			
+*****	
+***** 
+***** 功能描述：LCD显示整数函数		
+*****		   	将传进来的整数值按ASCII码形式送入显示屏显示，只正常显示000-999
+*****						
+*****
+***** 返回值：无
+*****
+***** 作者：Yan Xijun
+**************************************************************************************************/
+
+void DesppayChar(unsigned char uiData)
+{
+  xdata char ucStrDisp[3] = {'0','0','0'};//保存整数的ASCII在临时数组中
+  xdata unsigned char i = 0;
+  xdata unsigned char dataNum=3;//显示几位数
+  ucStrDisp[0] = (char)(uiData/100+48);//将数字转成对应的ASCII码
+  ucStrDisp[1] = (char)((uiData/10)%10+48);
+  ucStrDisp[2] = (char)(uiData%10+48);
+//  dataNum = 3;
+  //发送对应几位数的ASCII码进行显示
+  while(dataNum--)
+    {
+      LCDSendData(ucStrDisp[i]);
+      i++;
+    }
+}
+

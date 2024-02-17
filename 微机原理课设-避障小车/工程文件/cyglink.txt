@@ -1,0 +1,6 @@
+"C:\Users\ATi's lenovo\Desktop\学习任务\微机课设\数字系统与接口教学实训平台v3.1\数字系统与接口教学实训平台v3.0\避障v3.0\LCD_12864.obj",
+"C:\Users\ATi's lenovo\Desktop\学习任务\微机课设\数字系统与接口教学实训平台v3.1\数字系统与接口教学实训平台v3.0\避障v3.0\pwm_c.obj",
+"C:\Users\ATi's lenovo\Desktop\学习任务\微机课设\数字系统与接口教学实训平台v3.1\数字系统与接口教学实训平台v3.0\避障v3.0\Sensor_AD.obj",
+"C:\Users\ATi's lenovo\Desktop\学习任务\微机课设\数字系统与接口教学实训平台v3.1\数字系统与接口教学实训平台v3.0\避障v3.0\SystemInit.obj",
+"C:\Users\ATi's lenovo\Desktop\学习任务\微机课设\数字系统与接口教学实训平台v3.1\数字系统与接口教学实训平台v3.0\避障v3.0\APP_main.obj",
+"C:\Users\ATi's lenovo\Desktop\学习任务\微机课设\数字系统与接口教学实训平台v3.1\数字系统与接口教学实训平台v3.0\避障v3.0\Pin_Config.obj"  TO "C:\Users\ATi's lenovo\Desktop\学习任务\微机课设\数字系统与接口教学实训平台v3.1\数字系统与接口教学实训平台v3.0\避障v3.0\SmartCar" RS(256) PL(68) PW(78) 
